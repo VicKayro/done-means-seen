@@ -1,130 +1,178 @@
-# done-means-seen
+<p align="center">
+  <img src="assets/hero.svg" width="100%" alt="A terminal. Claude says the settings page is done. The Stop hook runs the typecheck, finds an error and sends Claude back to work while the andon light turns red. Claude fixes it, the check turns green, and Claude reports done again, after saving a value, reloading the page and seeing it stick.">
+</p>
 
-**Claude doesn't get to say "done" until it has seen the thing work.**
+<p align="center">
+  <b>When Claude says it's done, this hook reruns your typecheck and tests,<br>and sends Claude back to work if they fail.</b>
+</p>
+<p align="center">
+  Plus the rules that go with it, and Andon: a log of what your agents got wrong<br>that never accepts the same fix twice.
+</p>
 
-I run an AI consulting company in France and I'm not a developer. Most of our internal tools, our agents and my side projects are built with Claude Code, and for months my real job was being the tester of my own agents: "done!", I open it, it doesn't work, I paste the error back, and again. On 21/10/2026, after a talk called "Stop babysitting your agents", I wrote one rule, and then the few pieces of code that make it hard to skip. This is what runs on my Mac today, across 28 projects, translated from French and stripped of what only makes sense inside my company.
+<p align="center">
+  <a href="https://github.com/VicKayro/done-means-seen/actions/workflows/tests.yml"><img alt="tests" src="https://img.shields.io/github/actions/workflow/status/VicKayro/done-means-seen/tests.yml?branch=main&label=tests&style=flat-square&labelColor=0d0d0c&color=35d07f"></a>
+  <img alt="python 3.9+" src="https://img.shields.io/badge/python-3.9%2B-ecebe6?style=flat-square&labelColor=0d0d0c">
+  <img alt="zero dependencies" src="https://img.shields.io/badge/dependencies-0-ecebe6?style=flat-square&labelColor=0d0d0c">
+  <a href="https://docs.claude.com/en/docs/claude-code/hooks"><img alt="Claude Code Stop hook" src="https://img.shields.io/badge/claude_code-stop_hook-ffb224?style=flat-square&labelColor=0d0d0c"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-ecebe6?style=flat-square&labelColor=0d0d0c"></a>
+</p>
 
-## What's inside
+<p align="center">
+  <a href="#install">Install</a> ·
+  <a href="#how-the-hook-decides">The hook</a> ·
+  <a href="#andon">Andon</a> ·
+  <a href="#receipts">Receipts</a> ·
+  <a href="#faq">FAQ</a>
+</p>
 
-| Piece | What it does |
-|---|---|
-| [`CLAUDE.md`](CLAUDE.md) | The global instructions: four hard rules, the loop on every change, parallel agents, background loops, complaints. Goes in `~/.claude/CLAUDE.md`. |
-| [`hooks/verify_on_stop.py`](hooks/verify_on_stop.py) | A Stop hook. Before Claude hands back, it reruns the checks of every project Claude wrote to in the session. Red means Claude gets the error and keeps working. |
-| [`config/verify.example.json`](config/verify.example.json) | The map the hook reads: per project, the commands that say "it still builds". |
-| [`andon/`](andon/) | A registry where every complaint about an agent becomes a cause, a countermeasure and a dated check, and where a cause that comes back forces the next fix one level up. |
-| [`hooks/syntax_check.py`](hooks/syntax_check.py), [`hooks/icloud_nosync.sh`](hooks/icloud_nosync.sh) | Small helpers: a syntax check for script folders with no tests, and a way to keep `node_modules` out of iCloud when your projects live on the Desktop. |
-
-## The four rules
-
-1. **"Done" means I have seen it work.** Run it for real and see the effect (a screen, a log line, a row, a file). Re-reading the code does not count.
-2. **Loop on your own until it passes.** Stop only on a real blocker (a missing secret, production access, a decision that belongs to the human) and name it in one sentence.
-3. **Never make the human test in your place.** Hand back the proof, and say in plain words what is still unverified.
-4. **Verification never touches production.** Local, preview, branch or dry run.
-
-Rules in a prompt get ignored on a bad day, which is why the rest of this repo exists.
-
-## The Stop hook
-
-Claude Code runs [Stop hooks](https://docs.claude.com/en/docs/claude-code/hooks) when the model is about to end its turn. `verify_on_stop.py`:
-
-- reads the session transcript and finds the files Claude wrote to, through the edit tools and through shell commands that write (`sed -i`, heredocs, redirections, `git commit`, `mv`, `cp`),
-- maps them to projects in `~/.claude/verify.json`, by GitHub repo or by folder,
-- runs each project's `static` commands (`{changed}` expands to the changed files only, so a lint that takes 7 minutes on the whole repo takes 3 seconds),
-- on red, exits with code 2: Claude reads the error and keeps working.
-
-What Claude sees when it tries to stop on a red check:
-
-```
-ERROR: the check for demo fails after your changes.
-  command: grep -qx ok status.txt || { echo "status.txt says: $(cat status.txt)"; exit 1; }
---- end of output ---
-status.txt says: broken
 ---
-WHY: "done" means the checks are green (CLAUDE.md, rule 1).
-FIX: read the output, fix the cause, and hand back: the check reruns by itself.
-If the failure is not caused by your changes (it was there before, or comes from another session), say so in one line in your answer and hand back without changing anything: the guard will let you through.
-(block 1 of 3 for this session)
-```
 
-It is built to never become the thing you babysit:
+## Why
 
-- a project already verified green in the same state is skipped,
-- the same red state blocks only once: if Claude stops again without changing anything, it decided the failure isn't its doing, and it has to say so,
-- at most 3 blocks per session,
-- it never blocks for its own failure (missing tool, timeout, unreadable map): it logs and lets the turn end.
+For months my real job was being the tester of my own Claude Code agents: *"done!"*, I open it, it doesn't work, I paste the error back, and again. (I run an AI consulting company in France, and I'm not a developer.)
 
-Start with `"guard_enabled": false` and replay past sessions without blocking anything:
-
-```bash
-python3 ~/.claude/hooks/verify_on_stop.py --dry-run ~/.claude/projects/<project>/<session>.jsonl
-```
-
-## Andon
-
-On a Toyota line, the andon is the cord anyone pulls when something is wrong: the line stops, someone comes, and it restarts once the cause is dealt with. Here the cord is a complaint ("the project bot posts too much", "you told me it was done and it wasn't"). Each one becomes a line with its cause (from a catalogue of 10, like *noise*, *wrong*, *silence*, *trust*), the countermeasure, and a dated check that says whether it held.
-
-Countermeasures sit on a ladder, weakest first:
-
-1. **instruction**: change a prompt, a skill, a CLAUDE.md. A model can ignore it.
-2. **example**: the case enters the test suite and fails if it comes back.
-3. **guardrail**: the mistake becomes impossible or blocking in code.
-4. **mechanism**: change how the system works (where the data comes from, when it speaks, who does what).
-5. **standard**: change the rule shared by every system, when the cause shows up in several.
-
-The CLI does all the counting and refuses what would leave the registry lying: a recurrence fixed at the same level as last time (words that did not hold have to become code), a countermeasure marked as held without proof, silence taken as proof.
-
-On the fictional example registry, the project bot got chatty again after a mechanism-level fix, and someone tries to answer with a prompt edit:
-
-```
-$ andon add '{"system": "project-bot", "cause": "noise", "verbatim": "It is chatty again.",
-  "countermeasures": [{"level": "instruction", "text": "Prompt says: only post when something changed."}], ...}'
-REFUSED: Recurrence of A002: the last countermeasure went up to level "mechanism" and the cause came back.
-Go above it (standard), or say plainly that it is a different defect (different_defect),
-or write why this level is enough this time (same_level).
-```
-
-`andon review` gives the short list for the morning: checks due, what is waiting on whom, recurrences, causes that travel from one system to another, and the held rate. Try it: `ANDON_REGISTRY=andon/registry.example.json python3 andon/andon.py review`.
-
-## Receipts
-
-From my own logs, first 33 days of the hook (21/10 to 23/11/2026) and four months of the registry:
-
-- **171 sessions** ended through the hook, **386 checks** came back green at the end of a turn, and **16 times** the checks were red when Claude was about to hand back. It blocked 8 times; the other reds came in long sessions that had already used their 3 blocks.
-- **198 times** it could not judge (a worktree without dependencies, a timeout) and let the turn end. That's the deal.
-- **71 complaints** logged in Andon (the ones before 04/11 backfilled from notes). None of the 66 countermeasures stops at a prompt edit: 9 are guardrails, 46 change the mechanism, 11 became standards. 5 are still being understood. **8 came back**, and each time the tool forced the next fix one level up. 7 of the 71 are about Claude Code itself.
-- The honest part: today the registry says *0 held, 10 came back*. That's mostly calendar: the 30 countermeasures waiting for their check haven't been judged yet, while the ones that failed announced themselves. The first checks come due this week.
+On 21/10/2026, after a talk called *Stop babysitting your agents*, I wrote one rule, then the few pieces of code that make it hard to skip. This is what runs on my Mac today, across 28 projects.
 
 ## Install
 
 ```bash
 git clone https://github.com/VicKayro/done-means-seen && cd done-means-seen
-mkdir -p ~/.claude/hooks ~/.claude/skills/andon ~/.local/bin
-
-# the rules: copy if you have no ~/.claude/CLAUDE.md, otherwise merge by hand
-cp -n CLAUDE.md ~/.claude/CLAUDE.md
-
-# the hook and its map (then edit verify.json: your projects, your commands)
-cp hooks/verify_on_stop.py hooks/syntax_check.py hooks/icloud_nosync.sh ~/.claude/hooks/
-cp -n config/verify.example.json ~/.claude/verify.json
-# then add the "Stop" block of config/settings.example.json to ~/.claude/settings.json
-
-# andon
-cp andon/SKILL.md ~/.claude/skills/andon/SKILL.md
-ln -s "$PWD/andon/andon.py" ~/.local/bin/andon
+./install.sh --dry-run   # shows every action, writes nothing
+./install.sh
 ```
 
-Python 3.9+, no dependencies. If `gh` on your PATH is not the GitHub CLI, point `ANDON_GH` at it. Tests: `uv run --with pytest python -m pytest -q tests/ andon/tests/` (50 tests).
+It installs into `~/.claude`, backs up anything it replaces, never overwrites your `CLAUDE.md` or `verify.json`, and ships the hook **switched off**. Then:
+
+1. Tell the hook what "it works" means for each project, in `~/.claude/verify.json`:
+   ```json
+   { "name": "web-app", "repo": "you/web-app",
+     "static": ["npm run typecheck", "npx eslint {changed}"], "changed_glob": ["src/*.ts", "src/*.tsx"] }
+   ```
+2. Replay a past session without blocking anything (the installer prints the exact command for your latest one):
+   ```bash
+   python3 ~/.claude/hooks/verify_on_stop.py --dry-run ~/.claude/projects/<project>/<session>.jsonl
+   ```
+3. When the replay looks right, switch it on: `"guard_enabled": true`.
+
+Python 3.9+, macOS or Linux, no dependencies.
+
+## The four rules
+
+They live in [`CLAUDE.md`](CLAUDE.md), written from Claude's side:
+
+1. **"Done" means I have seen it work.** Run it for real and see the effect: a screen, a log line, a row, a file. Re-reading the code does not count.
+2. **I loop on my own until it passes.** I stop only on a real blocker (a missing secret, production access, a decision that belongs to the human) and name it in one sentence.
+3. **I never make the human test in my place.** They get the proof, and whatever is still unverified, said plainly.
+4. **Verification never touches production.** Local, preview, branch or dry run.
+
+Rules in a prompt get ignored on a bad day. The rest of this repo is what happens when they are.
+
+## How the hook decides
+
+Claude Code runs [Stop hooks](https://docs.claude.com/en/docs/claude-code/hooks) when the model is about to end its turn. [`verify_on_stop.py`](hooks/verify_on_stop.py):
+
+- reads the session transcript and finds the files Claude wrote to, through the edit tools and through shell commands that write (`sed -i`, heredocs, redirections, `git commit`, `mv`, `cp`),
+- maps them to projects in `~/.claude/verify.json`, by GitHub repo or by folder,
+- runs each project's `static` commands, where `{changed}` expands to the changed files only, so a lint reads what changed and nothing else,
+- on red, exits with code 2, and Claude gets this (a real run, on a real TypeScript error):
+
+```
+ERROR: the check for web-app fails after your changes.
+  command: npm run typecheck
+--- end of output ---
+> typecheck
+> tsc --noEmit
+
+src/settings.ts(4,9): error TS2322: Type 'string' is not assignable to type 'Timezone'.
+---
+WHY: "done" means the checks are green (CLAUDE.md, rule 1).
+FIX: read the output, fix the cause, and hand back: the check reruns by itself.
+If the failure is not caused by your changes (it was there before, or comes from another session),
+say so in one line in your answer and hand back without changing anything: the hook will let you through.
+(block 1 of 3 for this session)
+```
+
+It is built so it never becomes the thing you babysit:
+
+| Rule | Why |
+|---|---|
+| **Green is remembered** | A project already verified in the same state (same commit, same diff) is skipped. Most turns cost nothing. |
+| **One block per red state** | If Claude stops again without changing anything, it has decided the failure isn't from its changes, and it must say so in its answer. |
+| **Three blocks per session** | After that the turn ends anyway and the log records it, so a broken environment can't trap Claude in a loop. |
+| **Never blocks for its own failure** | Missing tool, timeout, unreadable config: one line in the log, and the turn ends. |
+
+## Andon
+
+Every complaint about one of your agents gets logged with its cause and its fix. If the same problem comes back, the tool refuses another fix at the same level: words that didn't hold have to become code.
+
+<p align="center">
+  <img src="assets/ladder.svg" width="100%" alt="The Andon ladder, weakest first: 1 instruction, 2 example, 3 guardrail, 4 mechanism, 5 standard. Instructions and examples are words a model can ignore; guardrails, mechanisms and standards are code.">
+</p>
+
+On a Toyota line, the andon is the cord anyone pulls when something is wrong: the line stops, someone comes, and it only restarts once the cause is dealt with. Here the cord is a complaint, like *"the project bot posts too much"* or *"you told me it was done and it wasn't"*. It becomes an entry with its cause (one of 10, such as *noise*, *wrong*, *silence* or *trust*), the fix, and a date to check whether the fix held.
+
+On the [example registry](andon/registry.example.json) (fictional), the project bot got chatty again after a fix that changed how it posts. Someone tries to answer with a prompt edit:
+
+```
+$ andon add < complaint.json      # cause: noise, fix: "Prompt says: only post when something changed."
+
+REFUSED: Recurrence of A002: the last countermeasure went up to level "mechanism" and the cause came back.
+Go above it (standard), or say plainly that it is a different defect (different_defect),
+or write why this level is enough this time (same_level).
+```
+
+It also refuses to mark a fix as held without proof, because silence is not proof. `andon review` lists what's due: fixes to check, what's waiting on whom, problems that came back. The [skill](andon/SKILL.md) teaches Claude Code the whole loop, from "someone told me" to the message back to that person.
+
+```bash
+ANDON_REGISTRY=andon/registry.example.json andon review
+```
+
+## Receipts
+
+<p align="center">
+  <img src="assets/receipt.svg" width="420" alt="Receipt, Oct 21 to Nov 23, 2026. Stop hook: 171 sessions, 386 checks green at end of turn, 16 red when Claude tried to stop, 8 sent back to work, 198 could not judge. Andon: 71 complaints logged, 0 fixes that are just a prompt, 8 came back and were forced up a level, 7 complaints about Claude itself. Silence is not proof.">
+</p>
+
+**16 times in 33 days, Claude tried to end its turn on a red check.** That's from my own logs. It became 8 blocks, because some long sessions had already used their 3. The 198 turns it could not judge are explained under [Limits](#limits).
+
+In Andon, none of the fixes is just a prompt edit, 8 problems came back and were pushed one level up, and 7 of the 71 complaints are about Claude Code itself. Whether the fixes hold is the next number: the first checks come due this week. Until then the registry can only count what came back, not what held, and this section will be updated.
+
+## FAQ
+
+**Does it slow Claude down?** A state already green is skipped, so most turns cost nothing. A red check costs what your commands take: on my projects, 2 seconds for a static site, 12 for a typecheck, 32 for a test suite.
+
+**What if the failure isn't Claude's?** It says so in one line and hands back. The same red state never blocks twice.
+
+**Does the hook look at the UI?** No, it runs your checks. Seeing the screen is Claude's job under rule 1, and it's the last line of the animation above: it saved a value, reloaded the page, and saw it stick.
+
+**Can I use one piece without the others?** Yes. The rules, the hook and Andon are independent.
+
+## What's inside
+
+| Path | What it is |
+|---|---|
+| [`CLAUDE.md`](CLAUDE.md) | The rules: four hard ones, the loop on every change, parallel agents, background loops, complaints. |
+| [`hooks/verify_on_stop.py`](hooks/verify_on_stop.py) | The Stop hook. |
+| [`config/`](config/) | Example `verify.json`, and the `settings.json` wiring. |
+| [`andon/`](andon/) | The registry CLI, the Claude Code skill, a morning round that only wakes a model when something is due, and the example registry. |
+| [`install.sh`](install.sh) | The installer: backups, safe to rerun, hook born switched off. |
+| [`hooks/`](hooks/) | Two helpers from my own setup: a syntax check for script folders with no tests, and a fix for `node_modules` stored in iCloud. |
 
 ## Limits
 
-- Detecting writes in shell commands is a regex heuristic. It errs on the side of checking: a read-only script fed through a heredoc from inside a project counts as a write to that project, so you may get blocked on a failure someone else left there. That's what the "say it's not yours and hand back" escape is for.
-- The hook runs static checks (typecheck, lint, tests). Clicking through a UI and taking a screenshot is still Claude following `CLAUDE.md`; a hook can't see a screen.
+- When a check can't even start (typically an agent's worktree with no dependencies installed), the hook lets the turn end rather than guess. On my machine that was 198 turns in 33 days.
+- Detecting writes in shell commands is a regex heuristic. It errs on the side of checking: a read-only script fed through a heredoc from inside a project counts as a write to that project, so you may get blocked on a failure someone else left there. That's what the "say it's not yours" escape is for.
 - A long session can use its 3 blocks and end on red. The log says so.
-- Tested on macOS. Linux paths are handled, less tested.
-- The registry is one JSON file in a git repo, for one person.
+- The Andon registry is one JSON file in a git repo, for one person.
+
+## Contributing
+
+The most useful issue is a case where the hook got it wrong: a write it missed, or a read it took for a write. See [CONTRIBUTING.md](CONTRIBUTING.md). Tests: `uv run --with pytest python -m pytest -q tests/ andon/tests/`.
 
 ## See also
 
-- [Leash](https://github.com/VicKayro/leash): see what your agents did last night (costs, loops, dead crons), one `npx` command.
+[Leash](https://github.com/VicKayro/leash): see what your agents did last night (costs, loops, dead crons), one `npx` command.
 
-MIT. Built with Claude Code, obviously.
+---
+
+<sub>MIT · Visuals set in DM Mono ([SIL Open Font License](assets/OFL-DM-Mono.txt)) · Built with Claude Code, obviously.</sub>

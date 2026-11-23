@@ -281,8 +281,8 @@ def block_message(failures, attempt, max_blocks):
     lines += [
         "WHY: \"done\" means the checks are green (CLAUDE.md, rule 1).",
         "FIX: read the output, fix the cause, and hand back: the check reruns by itself.",
-        "If the failure is not caused by your changes (it was there before, or comes from another session), "
-        "say so in one line in your answer and hand back without changing anything: the guard will let you through.",
+        "If the failure is not caused by your changes (it was there before, or comes from another session),",
+        "say so in one line in your answer and hand back without changing anything: the hook will let you through.",
         f"(block {attempt} of {max_blocks} for this session)",
     ]
     return "\n".join(lines)
