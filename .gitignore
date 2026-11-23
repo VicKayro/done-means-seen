@@ -1,0 +1,15 @@
+# secrets
+.env*
+*.pem
+*.key
+# local state and logs
+*.log
+*.state.json
+registry.json
+.registry-*.json
+# python
+__pycache__/
+.pytest_cache/
+.venv/
+# os
+.DS_Store
