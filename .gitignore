@@ -13,3 +13,5 @@ __pycache__/
 .venv/
 # os
 .DS_Store
+# agent worktrees
+.claude/

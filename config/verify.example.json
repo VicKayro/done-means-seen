@@ -1,0 +1,30 @@
+{
+  "_readme": "One entry per project. The Stop hook (hooks/verify_on_stop.py) finds the projects Claude wrote to during the session, by GitHub repo or by folder, and runs their `static` commands before Claude can hand back. `{changed}` expands to the changed files matching `changed_glob`. `timing`, `see` and `tests` are for Claude, the hook ignores them. Copy to ~/.claude/verify.json.",
+  "guard_enabled": true,
+  "max_blocks": 3,
+  "projects": [
+    {
+      "name": "web-app",
+      "repo": "your-github/web-app",
+      "static": ["npm run typecheck", "npx eslint --no-warn-ignored {changed}"],
+      "changed_glob": ["src/*.ts", "src/*.tsx"],
+      "timing": "typecheck 12 s; eslint on changed files only (the whole repo takes 7 min)",
+      "see": "start the `web-app` config from launch.json, click through the flow, read console and network, finish with a screenshot",
+      "tests": "npx vitest run <the test next to the changed file>"
+    },
+    {
+      "name": "python-service",
+      "repo": "your-github/python-service",
+      "static": ["uv run ruff check .", "uv run --with pytest python -m pytest -q"],
+      "timing": "ruff 1 s, pytest 9 s",
+      "see": "uv run python -m service --dry-run, read the output"
+    },
+    {
+      "name": "scripts (no git repo of its own)",
+      "folder": "*/my-workspace/scripts",
+      "static": ["python3 ~/.claude/hooks/syntax_check.py ."],
+      "timing": "2 s",
+      "see": "scripts that send mail or call a model are never run to verify: syntax only, and say so"
+    }
+  ]
+}
