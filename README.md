@@ -34,7 +34,17 @@ Claude Code runs [Stop hooks](https://docs.claude.com/en/docs/claude-code/hooks)
 
 What Claude sees when it tries to stop on a red check:
 
-<!-- BLOCK_SAMPLE -->
+```
+ERROR: the check for demo fails after your changes.
+  command: grep -qx ok status.txt || { echo "status.txt says: $(cat status.txt)"; exit 1; }
+--- end of output ---
+status.txt says: broken
+---
+WHY: "done" means the checks are green (CLAUDE.md, rule 1).
+FIX: read the output, fix the cause, and hand back: the check reruns by itself.
+If the failure is not caused by your changes (it was there before, or comes from another session), say so in one line in your answer and hand back without changing anything: the guard will let you through.
+(block 1 of 3 for this session)
+```
 
 It is built to never become the thing you babysit:
 
@@ -63,7 +73,17 @@ Countermeasures sit on a ladder, weakest first:
 
 The CLI does all the counting and refuses what would leave the registry lying: a recurrence fixed at the same level as last time (words that did not hold have to become code), a countermeasure marked as held without proof, silence taken as proof.
 
-<!-- ANDON_SAMPLE -->
+On the fictional example registry, the project bot got chatty again after a mechanism-level fix, and someone tries to answer with a prompt edit:
+
+```
+$ andon add '{"system": "project-bot", "cause": "noise", "verbatim": "It is chatty again.",
+  "countermeasures": [{"level": "instruction", "text": "Prompt says: only post when something changed."}], ...}'
+REFUSED: Recurrence of A002: the last countermeasure went up to level "mechanism" and the cause came back.
+Go above it (standard), or say plainly that it is a different defect (different_defect),
+or write why this level is enough this time (same_level).
+```
+
+`andon review` gives the short list for the morning: checks due, what is waiting on whom, recurrences, causes that travel from one system to another, and the held rate. Try it: `ANDON_REGISTRY=andon/registry.example.json python3 andon/andon.py review`.
 
 ## Receipts
 
@@ -93,7 +113,7 @@ cp andon/SKILL.md ~/.claude/skills/andon/SKILL.md
 ln -s "$PWD/andon/andon.py" ~/.local/bin/andon
 ```
 
-Python 3.9+ for the hook, no dependencies. The tests: `uv run --with pytest python -m pytest -q tests/ andon/tests/`.
+Python 3.9+, no dependencies. If `gh` on your PATH is not the GitHub CLI, point `ANDON_GH` at it. Tests: `uv run --with pytest python -m pytest -q tests/ andon/tests/` (50 tests).
 
 ## Limits
 

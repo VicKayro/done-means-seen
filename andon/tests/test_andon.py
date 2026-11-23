@@ -98,7 +98,7 @@ def test_same_level_allowed_only_at_code_level_and_in_writing():
 def test_an_awaited_decision_can_come_before_the_countermeasure():
     e, _ = andon.add(base(status="waiting_owner", owner="the CEO", waiting_for="pick the feedback channel"), D)
     assert e["status"] == "waiting_owner" and e["since"] == "2026-11-04"
-    m, _ = andon.add(base(system="tutor", date="2026-10-01", status="waiting_owner", owner="the CTO", waiting_for="merge"), D)
+    m, _ = andon.add(base(system="tutor", date="2026-10-01", status="waiting_owner", owner="a teammate", waiting_for="merge"), D)
     assert m["since"] == "2026-10-01"  # the wait starts on the day of the complaint
     with pytest.raises(andon.Refusal, match="owner"):
         andon.add(base(system="tutor", status="waiting_owner"), D)
@@ -159,10 +159,10 @@ def test_checks_due_and_brief():
 
 
 def test_long_wait_on_an_owner_shows_up_in_the_brief():
-    e, _ = andon.add(base(status="waiting_owner", countermeasures=[cm("guardrail")], owner="the CTO", waiting_for="merge of PR #900"),
+    e, _ = andon.add(base(status="waiting_owner", countermeasures=[cm("guardrail")], owner="a teammate", waiting_for="merge of PR #900"),
                      dt.date(2026, 10, 20))
     assert e["since"] == "2026-10-20"
-    assert "A001 waiting on the CTO for 15 d" in andon.brief_text(andon.load(), D)
+    assert "A001 waiting on a teammate for 15 d" in andon.brief_text(andon.load(), D)
     assert andon.brief_text(andon.load(), dt.date(2026, 10, 25)) == ""
 
 
@@ -199,18 +199,18 @@ def test_shipped_registries_are_valid(name):
 
 def test_badly_written_pr_refused():
     with pytest.raises(andon.Refusal, match="PR"):
-        andon.add(base(status="waiting_owner", owner="the CTO", waiting_for="merge", pr=["#886"]), D)
+        andon.add(base(status="waiting_owner", owner="a teammate", waiting_for="merge", pr=["#886"]), D)
 
 
 def test_todo_only_wakes_the_round_when_there_is_work():
     states = {"acme/tools#1": "MERGED", "acme/tools#2": "OPEN", "acme/tools#3": "CLOSED"}
     fake_github = states.get  # an unknown PR gives None: nothing is concluded
     assert andon.todo(andon.load(), D, fake_github) == []
-    andon.add(base(status="waiting_owner", owner="the CTO", waiting_for="merge", pr=["acme/tools#1"]), D)
-    andon.add(base(system="tutor", status="waiting_owner", owner="the CTO", waiting_for="merge",
+    andon.add(base(status="waiting_owner", owner="a teammate", waiting_for="merge", pr=["acme/tools#1"]), D)
+    andon.add(base(system="tutor", status="waiting_owner", owner="a teammate", waiting_for="merge",
                    pr=["acme/tools#1", "acme/tools#2"]), D)
-    andon.add(base(system="account-analyst", status="waiting_owner", owner="the CTO", waiting_for="merge", pr=["acme/tools#3"]), D)
-    andon.add(base(system="revenue-memo", status="waiting_owner", owner="the CTO", waiting_for="merge", pr=["acme/tools#9"]), D)
+    andon.add(base(system="account-analyst", status="waiting_owner", owner="a teammate", waiting_for="merge", pr=["acme/tools#3"]), D)
+    andon.add(base(system="revenue-memo", status="waiting_owner", owner="a teammate", waiting_for="merge", pr=["acme/tools#9"]), D)
     andon.add(base(system="assistant", status="waiting_owner", owner="the CEO", waiting_for="decide"), D)
     is_live = lambda r: ("live", f"{r}: green")  # noqa: E731
     work = andon.todo(andon.load(), D, fake_github, is_live)

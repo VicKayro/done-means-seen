@@ -130,8 +130,8 @@
     "system": "project-cockpit",
     "who": "a project manager",
     "channel": "weekly review",
-    "verbatim": "It says we are 116 days late on a delivery we did in September.",
-    "what_happened": "The cockpit flagged a client delivery as 116 days late; it happened on time, but the date field in the project base was never updated.",
+    "verbatim": "It says we are 83 days late on a delivery we did in September.",
+    "what_happened": "The cockpit flagged a client delivery as 83 days late; it happened on time, but the date field in the project base was never updated.",
     "cause": "bad_data",
     "wrong_assumption": "Someone updates the delivery date by hand after the meeting.",
     "stage": "C",
@@ -144,7 +144,7 @@
       }
     ],
     "status": "waiting_owner",
-    "owner": "the CTO",
+    "owner": "a teammate",
     "waiting_for": "Review and merge of the PR that reads dates from the calendar.",
     "pr": [
       "acme/tools#42"
@@ -238,7 +238,7 @@
     "system": "call-session",
     "who": "an SDR",
     "channel": "chat",
-    "verbatim": "It is not built for someone who calls eight hours a day.",
+    "verbatim": "Honestly the call screen feels off, I cannot say why.",
     "what_happened": "Too vague to act on yet: no screen or step named.",
     "cause": "effort",
     "date": "2026-11-18",
