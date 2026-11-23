@@ -1,0 +1,255 @@
+[
+  {
+    "system": "project-bot",
+    "who": "a project manager",
+    "channel": "project channel",
+    "verbatim": "Every morning it posts a wall of text, I stopped opening it.",
+    "what_happened": "The project bot posted a 40-line status thread in every project channel each morning; none got a human reply in two weeks.",
+    "cause": "noise",
+    "wrong_assumption": "More detail means more useful.",
+    "stage": "C",
+    "countermeasures": [
+      {
+        "level": "instruction",
+        "text": "Prompt asks for a short status, five lines at most.",
+        "where": "bot prompt",
+        "date": "2026-09-02"
+      }
+    ],
+    "status": "recurred",
+    "check": {
+      "date": "2026-09-09",
+      "how": "Read the next 10 morning posts and count the human replies."
+    },
+    "date": "2026-09-02",
+    "id": "A001",
+    "log": [
+      {
+        "date": "2026-09-02",
+        "text": "complaint logged"
+      },
+      {
+        "date": "2026-09-15",
+        "text": "to_check -> recurred: the cause came back (A002)"
+      }
+    ],
+    "recurred_by": "A002",
+    "recurred_on": "2026-09-15"
+  },
+  {
+    "system": "project-bot/morning-status",
+    "who": "a project manager",
+    "channel": "direct message",
+    "verbatim": "Still too long, and it says the same thing every day.",
+    "what_happened": "Posts went back to 25 to 40 lines within a week; the five-line instruction was ignored on busy projects.",
+    "cause": "noise",
+    "wrong_assumption": "A model will keep to a length written in its prompt.",
+    "stage": "C",
+    "date": "2026-09-15",
+    "countermeasures": [
+      {
+        "level": "mechanism",
+        "text": "The bot now speaks only when something changed since yesterday: a one-line card in the channel, the details in a thread under it. The daily digest is gone.",
+        "where": "bot posting code",
+        "date": "2026-09-16"
+      }
+    ],
+    "status": "held",
+    "id": "A002",
+    "recurs_from": "A001",
+    "log": [
+      {
+        "date": "2026-09-15",
+        "text": "complaint logged, recurrence of A001"
+      },
+      {
+        "date": "2026-09-16",
+        "text": "countermeasure mechanism: The bot now speaks only when something changed since yesterday: a one-line card in the channel, the details in a thread under it. The daily digest is gone."
+      },
+      {
+        "date": "2026-09-16",
+        "text": "to_understand -> to_check"
+      },
+      {
+        "date": "2026-09-30",
+        "text": "to_check -> held"
+      }
+    ],
+    "check": {
+      "date": "2026-09-30",
+      "how": "Count bot posts and posts with a human reply over two weeks, against 61 posts and 0 replies before.",
+      "proof": "Two weeks counted: 9 posts instead of 61, 6 with a human reply.",
+      "done_on": "2026-09-30"
+    },
+    "elsewhere": "Checked the sales coach and the weekly digest for the same pattern.",
+    "reply": {
+      "to": "a project manager",
+      "text": "You were right, it talked every day even when nothing had moved, so now it only speaks when something changed, in one line, with the details in a thread if you want them; if you see it rambling again, tell me.",
+      "sent": true
+    }
+  },
+  {
+    "system": "outreach-writer",
+    "who": "a sales rep",
+    "channel": "call",
+    "verbatim": "It drafted a follow-up to the buyer who asked us last month to stop writing.",
+    "what_happened": "The outreach agent drafted a follow-up email to a buyer at an industrial client who had asked not to be contacted; the sales rep caught it before sending.",
+    "cause": "trust",
+    "wrong_assumption": "The do-not-contact list lives in the CRM, so the agent will see it.",
+    "stage": "B",
+    "earlier": "At draft time, by checking the recipient against the list in code.",
+    "countermeasures": [
+      {
+        "level": "guardrail",
+        "text": "Every recipient is checked in code against the do-not-contact list before a draft is created; a blocked draft is never stored, and the agent is told why.",
+        "where": "outreach-writer, before drafting",
+        "date": "2026-10-06"
+      }
+    ],
+    "status": "held",
+    "check": {
+      "date": "2026-10-20",
+      "how": "Count drafts since the fix and how many the list blocked; zero drafts to a listed person.",
+      "proof": "42 drafts since Oct 6, 3 blocked by the list, 0 addressed to a listed person; the original case is in the test suite.",
+      "done_on": "2026-10-20"
+    },
+    "date": "2026-10-06",
+    "id": "A003",
+    "log": [
+      {
+        "date": "2026-10-06",
+        "text": "complaint logged"
+      },
+      {
+        "date": "2026-10-20",
+        "text": "to_check -> held"
+      }
+    ]
+  },
+  {
+    "system": "project-cockpit",
+    "who": "a project manager",
+    "channel": "weekly review",
+    "verbatim": "It says we are 116 days late on a delivery we did in September.",
+    "what_happened": "The cockpit flagged a client delivery as 116 days late; it happened on time, but the date field in the project base was never updated.",
+    "cause": "bad_data",
+    "wrong_assumption": "Someone updates the delivery date by hand after the meeting.",
+    "stage": "C",
+    "countermeasures": [
+      {
+        "level": "mechanism",
+        "text": "The delivery date is read from the calendar event of the delivery meeting, no longer typed by hand.",
+        "where": "cockpit data loader",
+        "date": "2026-10-14"
+      }
+    ],
+    "status": "waiting_owner",
+    "owner": "the CTO",
+    "waiting_for": "Review and merge of the PR that reads dates from the calendar.",
+    "pr": [
+      "acme/tools#42"
+    ],
+    "date": "2026-10-14",
+    "since": "2026-10-14",
+    "id": "A004",
+    "log": [
+      {
+        "date": "2026-10-14",
+        "text": "complaint logged"
+      }
+    ]
+  },
+  {
+    "system": "harness",
+    "who": "the CEO",
+    "channel": "session",
+    "verbatim": "You told me it was done and the page was blank.",
+    "what_happened": "Claude reported a change as working after a green typecheck; the page crashed on load.",
+    "cause": "broken",
+    "wrong_assumption": "A green typecheck means the page works.",
+    "stage": "E",
+    "countermeasures": [
+      {
+        "level": "standard",
+        "text": "Global CLAUDE.md, rule 1: done means seen working (run it, see the effect).",
+        "where": "~/.claude/CLAUDE.md",
+        "date": "2026-11-03"
+      },
+      {
+        "level": "guardrail",
+        "text": "End-of-turn hook reruns the project checks from verify.json and sends Claude back to work when they fail.",
+        "where": "hooks/verify_on_stop.py",
+        "date": "2026-11-03"
+      }
+    ],
+    "status": "to_check",
+    "check": {
+      "date": "2026-11-17",
+      "how": "Over two weeks, count the times the CEO found a broken change after hearing done, and the blocks in the hook log."
+    },
+    "date": "2026-11-03",
+    "id": "A005",
+    "log": [
+      {
+        "date": "2026-11-03",
+        "text": "complaint logged"
+      }
+    ]
+  },
+  {
+    "system": "sales-coach",
+    "who": "an SDR",
+    "channel": "team channel",
+    "verbatim": "Three messages every evening, I read none of them.",
+    "what_happened": "The sales coach sent three separate debrief messages per rep each evening; most were never opened.",
+    "cause": "noise",
+    "stage": "B",
+    "date": "2026-11-10",
+    "countermeasures": [
+      {
+        "level": "standard",
+        "text": "Every bot follows the shared posting template: one line in the channel, details in a thread, silent when nothing changed.",
+        "where": "shared bot template",
+        "date": "2026-11-10"
+      }
+    ],
+    "status": "to_check",
+    "id": "A006",
+    "log": [
+      {
+        "date": "2026-11-10",
+        "text": "complaint logged"
+      },
+      {
+        "date": "2026-11-10",
+        "text": "countermeasure standard: Every bot follows the shared posting template: one line in the channel, details in a thread, silent when nothing changed."
+      },
+      {
+        "date": "2026-11-10",
+        "text": "to_understand -> to_check"
+      }
+    ],
+    "check": {
+      "date": "2026-11-24",
+      "how": "Read one week of evening debriefs: one card per rep, and count the thread opens."
+    }
+  },
+  {
+    "system": "call-session",
+    "who": "an SDR",
+    "channel": "chat",
+    "verbatim": "It is not built for someone who calls eight hours a day.",
+    "what_happened": "Too vague to act on yet: no screen or step named.",
+    "cause": "effort",
+    "date": "2026-11-18",
+    "countermeasures": [],
+    "status": "to_understand",
+    "id": "A007",
+    "log": [
+      {
+        "date": "2026-11-18",
+        "text": "complaint logged"
+      }
+    ]
+  }
+]

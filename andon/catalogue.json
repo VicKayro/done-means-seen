@@ -1,0 +1,22 @@
+{
+  "_readme": "Andon's catalogue: the causes (to file a complaint like a breakdown report) and the countermeasure ladder (from weakest to strongest). Read by andon.py and by the andon skill. Change a code here and it changes everywhere.",
+  "causes": [
+    {"code": "wrong", "name": "Wrong", "when": "It states or sends something false: a number, a date, a name, a fact made up or misread."},
+    {"code": "bad_data", "name": "Bad data", "when": "It reasons correctly on bad material: data missing, stale, duplicated or attached to the wrong thing (CRM, transcript, link, folder)."},
+    {"code": "broken", "name": "Broken", "when": "It doesn't run: bug, crash, slowness, deliverable never produced, fix merged but never deployed."},
+    {"code": "noise", "name": "Noise", "when": "Too many messages, too long, too often, or with nothing new: people stop reading."},
+    {"code": "form", "name": "Form", "when": "The substance is right but it reads badly: jargon, density, tone, length, the wrong voice."},
+    {"code": "silence", "name": "Silence", "when": "It stays quiet where it should have spoken: a missed case, an absent alert, a question left unanswered."},
+    {"code": "off_target", "name": "Off target", "when": "It does well something nobody needs, or misses the real need: it adds work instead of removing it."},
+    {"code": "effort", "name": "Effort", "when": "It asks too much of the human: typing, a field to fill in, clicks, fetching the information elsewhere."},
+    {"code": "wrong_place", "name": "Wrong place", "when": "The right thing in the wrong place, at the wrong time or for the wrong person."},
+    {"code": "trust", "name": "Trust", "when": "It did or showed what it should not have: confidentiality, sending without agreement, acting outside its mandate."}
+  ],
+  "levels": [
+    {"code": "instruction", "rank": 1, "name": "Instruction", "what": "Change an instruction: prompt, skill, CLAUDE.md, playbook, memory. The weakest: a model can ignore it."},
+    {"code": "example", "rank": 2, "name": "Example", "what": "Put the case into the suite: a regression test or eval case that reproduces the complaint and fails if it comes back."},
+    {"code": "guardrail", "rank": 3, "name": "Guardrail", "what": "Make the mistake impossible or blocking in code: validation before sending, a CI check, a threshold, a mechanical refusal."},
+    {"code": "mechanism", "rank": 4, "name": "Mechanism", "what": "Change how the system works: where the data comes from, when it speaks, where it lives, who does what."},
+    {"code": "standard", "rank": 5, "name": "Standard", "what": "Change the rule shared by every system (doctrine, bot template, global CLAUDE.md) when the cause shows up elsewhere."}
+  ]
+}
