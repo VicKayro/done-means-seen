@@ -9,7 +9,9 @@ keeps looping until it is green.
 - A state already verified green (same commit, same changes) is not rerun.
 - The same failing state blocks only once: if Claude stops again without changing
   anything, it has judged the failure not to be its own, and it is allowed to say so.
-- At most `max_blocks` blocks per session.
+- At most `max_blocks` blocks per request: the count starts over when Claude stops
+  for the first time after a new message (Claude Code then sends stop_hook_active
+  false). Past the limit Claude is let through, and the log says so in its own line.
 - Any failure of the guard itself lets Claude through: it never blocks because of
   its own fault (command not found, timeout, unreadable map).
 
@@ -283,7 +285,7 @@ def block_message(failures, attempt, max_blocks):
         "FIX: read the output, fix the cause, and hand back: the check reruns by itself.",
         "If the failure is not caused by your changes (it was there before, or comes from another session),",
         "say so in one line in your answer and hand back without changing anything: the hook will let you through.",
-        f"(block {attempt} of {max_blocks} for this session)",
+        f"(block {attempt} of {max_blocks} for this request)",
     ]
     return "\n".join(lines)
 
@@ -315,6 +317,10 @@ def main():
     state = read_state()
     s = state.setdefault("sessions", {}).setdefault(session, {"blocks": 0, "failures": {}})
     s["seen"] = time.time()
+    if not hook_input.get("stop_hook_active"):
+        # First stop since the last message: this request gets its own block budget.
+        # (Claude Code sets stop_hook_active once a Stop hook has sent Claude back to work.)
+        s["blocks"] = 0
     max_blocks = vmap.get("max_blocks", 3)
     env = tool_env()
     failures = []
@@ -341,12 +347,16 @@ def main():
             failures.append((project["name"], command, output))
             log(f"{session[:8]} {project['name']} FAILED ({duration} s): {command}")
 
+    if failures and s["blocks"] >= max_blocks:
+        log(f"{session[:8]} block limit reached ({max_blocks} for this request): letting Claude through on red")
     if failures and s["blocks"] < max_blocks:
         s["blocks"] += 1
         message = block_message(failures, s["blocks"], max_blocks)
         if dry_run:
             print(f"[dry run] would have blocked with:\n{message}")
             return 0
+        log(f"{session[:8]} BLOCKED ({s['blocks']} of {max_blocks} for this request): "
+            + ", ".join(name for name, _, _ in failures))
         write_state(state)
         print(message, file=sys.stderr)
         return 2

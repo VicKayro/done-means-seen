@@ -1,14 +1,14 @@
 {
-  "_readme": "One entry per project. The Stop hook (hooks/verify_on_stop.py) finds the projects Claude wrote to during the session, by GitHub repo or by folder, and runs their `static` commands before Claude can hand back. `{changed}` expands to the changed files matching `changed_glob`. `timing`, `see` and `tests` are for Claude, the hook ignores them. Copy to ~/.claude/verify.json.",
+  "_readme": "One entry per project. The Stop hook (hooks/verify_on_stop.py) finds the projects Claude wrote to during the session, by GitHub repo or by folder, and runs their `static` commands before Claude can hand back. `{changed}` expands to the changed files matching `changed_glob`. Commands run in order and stop at the first failure; one entry per repo. `timing`, `see` and `tests` are for Claude, the hook ignores them. Copy to ~/.claude/verify.json.",
   "guard_enabled": true,
   "max_blocks": 3,
   "projects": [
     {
       "name": "web-app",
       "repo": "your-github/web-app",
-      "static": ["npm run typecheck", "npx eslint --no-warn-ignored {changed}"],
+      "static": ["npm run typecheck", "npx eslint --no-warn-ignored {changed}", "npx playwright test --reporter=line"],
       "changed_glob": ["src/*.ts", "src/*.tsx"],
-      "timing": "typecheck 12 s; eslint on changed files only (the whole repo takes 7 min)",
+      "timing": "typecheck 12 s; eslint on changed files only (the whole repo takes 7 min); Playwright 40 s against the dev server its config starts, run last, so only once the first two pass",
       "see": "start the `web-app` config from launch.json, click through the flow, read console and network, finish with a screenshot",
       "tests": "npx vitest run <the test next to the changed file>"
     },

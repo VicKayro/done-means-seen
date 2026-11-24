@@ -73,8 +73,11 @@ class Sandbox:
         return ("Edit", {"file_path": str(self.repo / name), "old_string": "a", "new_string": "b"})
 
     # -- running the hook
-    def stop(self, session="sess-0001", extra_env=None):
-        payload = {"session_id": session, "transcript_path": str(self.transcript), "hook_event_name": "Stop"}
+    def stop(self, session="sess-0001", extra_env=None, after_block=False):
+        # after_block: Claude Code sets stop_hook_active when a Stop hook sent Claude back to work;
+        # it is false on the first stop after a new message from the user.
+        payload = {"session_id": session, "transcript_path": str(self.transcript), "hook_event_name": "Stop",
+                   "stop_hook_active": after_block}
         return subprocess.run([sys.executable, str(HOOK)], input=json.dumps(payload), text=True,
                               capture_output=True, env={**self.env, **(extra_env or {})}, timeout=120)
 
@@ -106,14 +109,15 @@ def test_red_check_blocks_with_error_why_fix(sb):
     assert f"command: {CHECK_OK}" in r.stderr
     assert "WHY:" in r.stderr and "FIX:" in r.stderr
     assert "say so in one line" in r.stderr
-    assert "(block 1 of 3 for this session)" in r.stderr
+    assert "(block 1 of 3 for this request)" in r.stderr
     assert "demo FAILED" in sb.log_text()
+    assert "BLOCKED (1 of 3 for this request): demo" in sb.log_text()
 
 
 def test_same_red_state_blocks_only_once(sb):
     (sb.repo / "status.txt").write_text("broken\n")
     assert sb.stop().returncode == 2
-    second = sb.stop()
+    second = sb.stop(after_block=True)
     assert second.returncode == 0, second.stderr
     assert "same failure, unchanged" in sb.log_text()
 
@@ -200,16 +204,32 @@ def test_changed_step_skipped_when_nothing_matches(tmp_path):
     assert "demo green" in sb.log_text()
 
 
-def test_max_blocks_per_session(sb):
+def test_max_blocks_per_request(sb):
     sb.write_map([CHECK_OK], max_blocks=2)
     codes = []
     for n in range(3):
         (sb.repo / "status.txt").write_text(f"broken {n}\n")  # a new failing state each time
-        r = sb.stop()
+        r = sb.stop(after_block=n > 0)
         codes.append(r.returncode)
         if r.returncode == 2:
-            assert f"(block {n + 1} of 2 for this session)" in r.stderr
+            assert f"(block {n + 1} of 2 for this request)" in r.stderr
     assert codes == [2, 2, 0]
+    log = sb.log_text()
+    assert log.count("BLOCKED") == 2
+    assert "block limit reached (2 for this request): letting Claude through on red" in log
+
+
+def test_a_new_request_gets_its_own_blocks(sb):
+    # A long session: the limit reached on one request must not disarm the hook for the next ones.
+    sb.write_map([CHECK_OK], max_blocks=1)
+    (sb.repo / "status.txt").write_text("broken 0\n")
+    assert sb.stop().returncode == 2
+    (sb.repo / "status.txt").write_text("broken 1\n")
+    assert sb.stop(after_block=True).returncode == 0  # same request, limit reached
+    (sb.repo / "status.txt").write_text("broken 2\n")
+    nxt = sb.stop()  # the user wrote again: stop_hook_active is false
+    assert nxt.returncode == 2, nxt.stderr
+    assert "(block 1 of 1 for this request)" in nxt.stderr
 
 
 def test_command_not_found_is_not_judged(sb):

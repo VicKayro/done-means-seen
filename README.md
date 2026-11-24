@@ -89,7 +89,7 @@ WHY: "done" means the checks are green (CLAUDE.md, rule 1).
 FIX: read the output, fix the cause, and hand back: the check reruns by itself.
 If the failure is not caused by your changes (it was there before, or comes from another session),
 say so in one line in your answer and hand back without changing anything: the hook will let you through.
-(block 1 of 3 for this session)
+(block 1 of 3 for this request)
 ```
 
 It is built so it never becomes the thing you babysit:
@@ -98,7 +98,7 @@ It is built so it never becomes the thing you babysit:
 |---|---|
 | **Green is remembered** | A project already verified in the same state (same commit, same diff) is skipped. Most turns cost nothing. |
 | **One block per red state** | If Claude stops again without changing anything, it has decided the failure isn't from its changes, and it must say so in its answer. |
-| **Three blocks per session** | After that the turn ends anyway and the log records it, so a broken environment can't trap Claude in a loop. |
+| **Three blocks per request** | After that the turn ends anyway, with its own line in the log, so a broken environment can't trap Claude in a loop. Your next message starts a fresh count. |
 | **Never blocks for its own failure** | Missing tool, timeout, unreadable config: one line in the log, and the turn ends. |
 
 ## Andon
@@ -133,17 +133,25 @@ ANDON_REGISTRY=andon/registry.example.json andon review
   <img src="assets/receipt.svg" width="420" alt="Receipt, Oct 21 to Nov 23, 2026. Stop hook: 171 sessions, 386 checks green at end of turn, 16 red when Claude tried to stop, 8 sent back to work, 198 could not judge. Andon: 71 complaints logged, 0 fixes that are just a prompt, 8 came back and were forced up a level, 7 complaints about Claude itself. Silence is not proof.">
 </p>
 
-**16 times in 33 days, Claude tried to end its turn on a red check.** That's from my own logs. It became 8 blocks, because some long sessions had already used their 3. The 198 turns it could not judge are explained under [Limits](#limits).
+**16 times in 33 days, Claude tried to end its turn on a red check.** That's from my own logs. 8 times it was sent back to work. The other 8 got through, because the block counter was per session and two long sessions had used their 3 blocks on earlier requests: a reader spotted it in the code the day this repo went public. Since 0.2.0 the count is per request, and replayed on the same log, all 8 would have been blocked. The 198 turns it could not judge are explained under [Limits](#limits).
 
 In Andon, none of the fixes is just a prompt edit, 8 problems came back and were pushed one level up, and 7 of the 71 complaints are about Claude Code itself. Whether the fixes hold is the next number: the first checks come due this week. Until then the registry can only count what came back, not what held, and this section will be updated.
 
 ## FAQ
 
-**Does it slow Claude down?** A state already green is skipped, so most turns cost nothing. A red check costs what your commands take: on my projects, 2 seconds for a static site, 12 for a typecheck, 32 for a test suite.
+**Does it slow Claude down?** A state already green is skipped, so most turns cost nothing. A red check costs what your commands take: on my projects, 2 seconds for a static site, 12 for a typecheck, 32 for a test suite. The hook never calls a model.
+
+**Can it loop forever?** No. The same red state blocks once, a request gets 3 blocks, and Claude Code itself stops after 8 Stop-hook blocks in a row (`CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` changes that ceiling).
 
 **What if the failure isn't Claude's?** It says so in one line and hands back. The same red state never blocks twice.
 
-**Does the hook look at the UI?** No, it runs your checks. Seeing the screen is Claude's job under rule 1, and it's the last line of the animation above: it saved a value, reloaded the page, and saw it stick.
+**Does the hook look at the UI?** Only through your commands: put your Playwright suite in `static` (there's one in the [example map](config/verify.example.json)) and an end-to-end run becomes part of "done". Seeing the screen is also Claude's job under rule 1, the last line of the animation above.
+
+**Why not `/goal`?** Use both. `/goal` is for one task: you type a condition, and a separate model judges after each turn whether it's met. This hook is always on, in every session, and judged by exit codes.
+
+**Why not a pre-commit hook?** Keep yours. Claude says "done" long before anything gets committed, and often nothing does. The hook runs when the turn ends, skips states already green, and `{changed}` lints only what changed.
+
+**Why rules in `CLAUDE.md` and not a skill?** A skill loads when the model decides it's relevant, and these rules are for the moment it decides they aren't. The file is about 1,500 tokens.
 
 **Can I use one piece without the others?** Yes. The rules, the hook and Andon are independent.
 
@@ -162,7 +170,7 @@ In Andon, none of the fixes is just a prompt edit, 8 problems came back and were
 
 - When a check can't even start (typically an agent's worktree with no dependencies installed), the hook lets the turn end rather than guess. On my machine that was 198 turns in 33 days.
 - Detecting writes in shell commands is a regex heuristic. It errs on the side of checking: a read-only script fed through a heredoc from inside a project counts as a write to that project, so you may get blocked on a failure someone else left there. That's what the "say it's not yours" escape is for.
-- A long session can use its 3 blocks and end on red. The log says so.
+- One request can use its 3 blocks and end on red. The log says so, in its own line.
 - The Andon registry is one JSON file in a git repo, for one person.
 
 ## Contributing
