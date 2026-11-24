@@ -71,7 +71,7 @@ Rules in a prompt get ignored on a bad day. The rest of this repo is what happen
 
 Claude Code runs [Stop hooks](https://docs.claude.com/en/docs/claude-code/hooks) when the model is about to end its turn. [`verify_on_stop.py`](hooks/verify_on_stop.py):
 
-- reads the session transcript and finds the files Claude wrote to, through the edit tools and through shell commands that write (`sed -i`, heredocs, redirections, `git commit`, `mv`, `cp`),
+- reads the session transcript, and those of its subagents, and finds the files Claude wrote to, through the edit tools and through shell commands that write (`sed -i`, heredocs, redirections, `git commit`, `mv`, `cp`),
 - maps them to projects in `~/.claude/verify.json`, by GitHub repo or by folder,
 - runs each project's `static` commands, where `{changed}` expands to the changed files only, so a lint reads what changed and nothing else,
 - on red, exits with code 2, and Claude gets this (a real run, on a real TypeScript error):
@@ -171,6 +171,7 @@ In Andon, none of the fixes is just a prompt edit, 8 problems came back and were
 - When a check can't even start (typically an agent's worktree with no dependencies installed), the hook lets the turn end rather than guess. On my machine that was 198 turns in 33 days.
 - Detecting writes in shell commands is a regex heuristic. It errs on the side of checking: a read-only script fed through a heredoc from inside a project counts as a write to that project, so you may get blocked on a failure someone else left there. That's what the "say it's not yours" escape is for.
 - One request can use its 3 blocks and end on red. The log says so, in its own line.
+- Subagent transcripts are found where Claude Code writes them today, under `<session>/subagents/`. If that layout changes, a project only a subagent touched goes unchecked again, silently.
 - The Andon registry is one JSON file in a git repo, for one person.
 
 ## Contributing

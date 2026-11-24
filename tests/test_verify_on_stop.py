@@ -60,14 +60,16 @@ class Sandbox:
         project = {"name": "demo", "repo": "acme/demo", "static": static, **project}
         self.map.write_text(json.dumps({"guard_enabled": guard_enabled, "max_blocks": max_blocks, "projects": [project]}))
 
-    def write_transcript(self, *tool_uses):
+    def write_transcript(self, *tool_uses, path=None):
         lines = [json.dumps({"type": "user", "message": {"content": "fix the status file"}})]
         for name, tool_input in tool_uses:
             lines.append(json.dumps({
                 "type": "assistant", "cwd": str(self.tmp),
                 "message": {"content": [{"type": "tool_use", "name": name, "input": tool_input}]},
             }))
-        self.transcript.write_text("\n".join(lines) + "\n")
+        path = path or self.transcript
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("\n".join(lines) + "\n")
 
     def edit(self, name):
         return ("Edit", {"file_path": str(self.repo / name), "old_string": "a", "new_string": "b"})
@@ -230,6 +232,18 @@ def test_a_new_request_gets_its_own_blocks(sb):
     nxt = sb.stop()  # the user wrote again: stop_hook_active is false
     assert nxt.returncode == 2, nxt.stderr
     assert "(block 1 of 1 for this request)" in nxt.stderr
+
+
+@pytest.mark.parametrize("where", ["subagents/agent-a1.jsonl", "subagents/workflows/wf_1/agent-a2.jsonl"])
+def test_a_project_changed_only_by_a_subagent_is_checked(sb, where):
+    # Claude Code writes each subagent's transcript apart, under <session>/subagents/
+    # (a workflow's agents one level deeper). Reported by a reader.
+    sb.write_transcript()  # the main session only delegated
+    sb.write_transcript(sb.edit("status.txt"), path=sb.transcript.with_suffix("") / where)
+    (sb.repo / "status.txt").write_text("broken\n")
+    r = sb.stop()
+    assert r.returncode == 2, r.stderr
+    assert "the check for demo fails" in r.stderr
 
 
 def test_command_not_found_is_not_judged(sb):

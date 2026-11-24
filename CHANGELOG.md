@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1 (2026-11-24)
+
+- **Subagents count.** The hook read the main session's transcript only, while Claude Code writes each subagent's apart, under `<session>/subagents/` (a workflow's agents one level deeper). A project changed only by a subagent was never checked. On my own sessions since 21/10, that was 12 folders in 5 of the 23 sessions that used subagents. The hook now reads them all. Reported by the same reader, from the code alone.
+
 ## 0.2.0 (2026-11-24)
 
 - **Blocks are counted per request.** The counter used to be per session and never started over, so in a long session, once 3 blocks were used, every later red check let Claude through. It now resets on the first stop after each new message (`stop_hook_active` false). On my own log, 8 of 16 red stops had gone through that way. Reported by a reader on LinkedIn, from the code alone.

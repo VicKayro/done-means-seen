@@ -12,6 +12,8 @@ keeps looping until it is green.
 - At most `max_blocks` blocks per request: the count starts over when Claude stops
   for the first time after a new message (Claude Code then sends stop_hook_active
   false). Past the limit Claude is let through, and the log says so in its own line.
+- Subagents count: each one writes its own transcript (<session>/subagents/), and a
+  project only a subagent changed is checked like the others.
 - Any failure of the guard itself lets Claude through: it never blocks because of
   its own fault (command not found, timeout, unreadable map).
 
@@ -96,36 +98,44 @@ def git_root(path, cache):
     return cache[p]
 
 
+def session_transcripts(transcript):
+    """The session's transcript and its subagents': Claude Code writes each subagent's
+    apart, under <session>/subagents/ (a workflow's agents one level deeper)."""
+    folder = Path(transcript).with_suffix("") / "subagents"
+    return [transcript] + sorted(str(p) for p in folder.rglob("agent-*.jsonl"))
+
+
 def touched_paths(transcript):
-    """Files and folders the session wrote to: edit tools plus shell commands that write."""
+    """Files and folders the session wrote to, its subagents included: edit tools plus shell commands that write."""
     touched = set()
-    with open(transcript, errors="replace") as f:
-        for line in f:
-            if '"tool_use"' not in line:
-                continue
-            try:
-                entry = json.loads(line)
-            except ValueError:
-                continue
-            content = (entry.get("message") or {}).get("content")
-            if not isinstance(content, list):
-                continue
-            for block in content:
-                if not isinstance(block, dict) or block.get("type") != "tool_use":
+    for one in session_transcripts(transcript):
+        with open(one, errors="replace") as f:
+            for line in f:
+                if '"tool_use"' not in line:
                     continue
-                name, inputs = block.get("name"), block.get("input") or {}
-                if name in WRITE_TOOLS:
-                    path = inputs.get("file_path") or inputs.get("notebook_path")
-                    if path:
-                        touched.add(path)
-                elif name == "Bash":
-                    command = inputs.get("command") or ""
-                    if not BASH_WRITES.search(command):
+                try:
+                    entry = json.loads(line)
+                except ValueError:
+                    continue
+                content = (entry.get("message") or {}).get("content")
+                if not isinstance(content, list):
+                    continue
+                for block in content:
+                    if not isinstance(block, dict) or block.get("type") != "tool_use":
                         continue
-                    found = QUOTED_PATH.findall(command) + BARE_PATH.findall(command)
-                    touched.update(found)
-                    if not found and entry.get("cwd"):
-                        touched.add(entry["cwd"])
+                    name, inputs = block.get("name"), block.get("input") or {}
+                    if name in WRITE_TOOLS:
+                        path = inputs.get("file_path") or inputs.get("notebook_path")
+                        if path:
+                            touched.add(path)
+                    elif name == "Bash":
+                        command = inputs.get("command") or ""
+                        if not BASH_WRITES.search(command):
+                            continue
+                        found = QUOTED_PATH.findall(command) + BARE_PATH.findall(command)
+                        touched.update(found)
+                        if not found and entry.get("cwd"):
+                            touched.add(entry["cwd"])
     return touched
 
 
