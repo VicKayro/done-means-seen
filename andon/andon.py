@@ -118,8 +118,15 @@ def find(entries: list[dict], id_: str) -> dict:
     raise Refusal(f"No complaint {id_} in the registry.")
 
 
+def arrival(entry: dict) -> float:
+    """Order of arrival in the registry (A060 -> 60); an entry with no id yet is the latest."""
+    i = str(entry.get("id") or "")
+    return int(i[1:]) if i[1:].isdigit() else float("inf")
+
+
 def earlier_same_cause(entries: list[dict], entry: dict) -> list[dict]:
-    """Older complaints with the same cause on the same system, within the recurrence window."""
+    """Older complaints with the same cause on the same system, within the recurrence window.
+    On the same day, only those logged before it count (lower id)."""
     d = day(entry["date"])
     out = []
     for e in entries:
@@ -128,7 +135,7 @@ def earlier_same_cause(entries: list[dict], entry: dict) -> list[dict]:
         if root(e["system"]) != root(entry["system"]) or e["cause"] != entry["cause"]:
             continue
         de = day(e["date"])
-        if de <= d and (d - de).days <= RECURRENCE_WINDOW:
+        if (de, arrival(e)) < (d, arrival(entry)) and (d - de).days <= RECURRENCE_WINDOW:
             out.append(e)
     return sorted(out, key=lambda e: (e["date"], e["id"]))
 

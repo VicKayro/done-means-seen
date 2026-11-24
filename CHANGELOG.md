@@ -3,6 +3,7 @@
 ## 0.2.1 (2026-11-24)
 
 - **Subagents count.** The hook read the main session's transcript only, while Claude Code writes each subagent's apart, under `<session>/subagents/` (a workflow's agents one level deeper). A project changed only by a subagent was never checked. On my own sessions since 21/10, that was 12 folders in 5 of the 23 sessions that used subagents. The hook now reads them all. Reported by the same reader, from the code alone.
+- **Andon: same-day order.** A complaint logged later the same day counted as earlier than one logged before it, so a valid recurrence could turn invalid after the fact, and the registry test failed on an entry nobody had touched. On the same day, the order of arrival (the id) now decides.
 
 ## 0.2.0 (2026-11-24)
 

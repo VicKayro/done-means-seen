@@ -126,6 +126,19 @@ def test_subsystem_counts_as_the_system():
     assert b["recurs_from"] == "A001" and b["system"] == "project-bot/weekly-emails"
 
 
+def test_a_complaint_logged_later_the_same_day_is_not_earlier():
+    # A later entry of the same day, with a higher countermeasure, made a valid recurrence
+    # look like one that had not gone up a level, and the registry turned invalid.
+    andon.add(checked(date="2026-10-01", countermeasures=[cm("mechanism")]), D)
+    b, _ = andon.add(base(who="a cofounder"), D)
+    b, _ = andon.update(b["id"], {"countermeasure": cm("standard"), "status": "in_progress"}, D)
+    andon.add(base(who="a sales rep", different_defect="this one is the colours", countermeasures=[cm("standard")]), D)
+    entries = andon.load()
+    for e in entries:
+        andon.validate(e, entries)
+    andon.update(b["id"], {"log": "reread"}, D)  # an older entry stays editable
+
+
 def test_old_complaint_outside_the_window_is_not_a_recurrence():
     andon.add(checked(date="2026-01-01"), D)
     b, _ = andon.add(base(), D)
