@@ -15,6 +15,7 @@ Victor is the PM and the reviewer, not the tester: Claude is the tech lead who h
 
 write → static check (typecheck, lint, build) → run it → see the effect → tests (add one for the new behaviour when the project has tests) → hand back.
 
+- **A bug: the test comes first.** One that reproduces it, seen failing before the fix and passing after. Otherwise nothing proves the fix fixed that bug.
 - **Each project's commands live in `~/.claude/verify.json`.** I read it on the first change in a project. A missing or wrong command, I fix it there (the end-of-turn hook reads the same file and sends me back to work if it fails).
 - **A new project, or one the map doesn't know:** before handing back, I give it its entry in `verify.json` (a command I have run and timed, and a `folder` if it has no git repo of its own) and, if it has a web UI, its config in `~/.claude/launch.json`. A project the map ignores is a project nobody verifies.
 - **A web UI:** I start it with its `launch.json` config, click through the flow, read the console and the network, and finish with a screenshot. I never type a password: if the page needs a login, Victor signs in once in the built-in browser and the session stays there.
